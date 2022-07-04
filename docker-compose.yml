@@ -1,0 +1,79 @@
+version: "3.7"
+
+services:
+    # image project
+    app:
+        container_name: app
+        build:
+            context: .
+            dockerfile: Dockerfile
+        image: app
+        restart: unless-stopped
+        working_dir: /var/www/
+        volumes:
+            - ./:/var/www
+        depends_on: 
+            - redis
+        networks: 
+            - laravel-9
+    
+    # nginx
+    nginx:
+        container_name: nginx
+        image: nginx:alpine
+        restart: unless-stopped
+        ports: 
+            - "8989:80"
+        volumes: 
+            - ./:/var/www
+            - ./docker/nginx/:/etc/nginx/conf.d/
+        networks: 
+            - laravel-9
+
+    # db mysql
+    db:
+        image: mariadb
+        restart: always
+        environment:
+            MARIADB_DATABASE: ${DB_DATABASE}
+            MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+            MARIADB_PASSWORD: ${DB_PASSWORD}
+            MARIADB_USER: ${DB_USERNAME}
+        volumes: 
+            - ./.docker/mysql/dbdata:/var/lib/mysql
+        networks: 
+            - laravel-9
+        
+
+    adminer:
+        image: adminer
+        restart: always
+        ports:
+          - 8080:8080        
+        networks: 
+            - laravel-9
+
+    # queue
+    queue:
+        container_name: queue
+        image: app
+        restart: unless-stopped
+        command: "php artisan queue:work"
+        volumes: 
+            - ./:/var/www
+        depends_on: 
+            - redis
+            - app
+        networks: 
+            - laravel-9
+
+    # redis
+    redis:
+        container_name: redis
+        image: redis:latest
+        networks: 
+            - laravel-9
+
+networks: 
+    laravel-9:
+        driver: bridge
